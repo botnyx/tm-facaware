@@ -188,7 +188,7 @@ class middleware {
 			//https://accounts.trustmaster.nl
 			
 			
-			$endpoint = $this->idp_server."/authorize?response_type=code&client_id=".$this->client_id."&state=".time()."&redirect_uri=".$redirectUrl;
+			$endpoint = $this->server."/authorize?response_type=code&client_id=".$this->client_id."&state=".time()."&redirect_uri=".$redirectUrl;
 			$this->idp->getLink($redir_url);
 			
 			if($this->noredir ){
