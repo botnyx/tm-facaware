@@ -55,14 +55,18 @@ class idpconn {
 	
 	public function getTokenByUserCredentials ($user,$pass){
 		$response  = $this->user_credentials($user,$pass);
-		return $this->format($response);
+		return $response;
+		#var_dump($response);
+		#die();
+		#
+		#return $this->format($response);
 	}
 	
 	
 	
-	public function getAuthorizationCodeFromRedirect (){
+	public function getAuthorizationCodeFromRedirect ($authorized,$client_id,$user_id,$idpServer,$idpauthorizeEndpoint){
 		// $idpServer;$idpauthorizeEndpoint;
-		
+		//if(	$authorized==true){ $authorized='yes'; }else{$authorized='no';}
 		$response = $this->get_authorization_code_from_redirect($authorized,$client_id,$user_id,$idpServer,$idpauthorizeEndpoint);
 		return $this->format($response);
 	}
@@ -73,19 +77,23 @@ class idpconn {
 	}
 	
 	
-	
+	 
 	public function format ($response){
-		//$response->getStatusCode();
-		//$response->getBody()->getContents();
 		
-		$contenttype = $response->getHeader('Content-Type');
-		
-		if($contenttype=="application/json"){
-			$res = json_decode($response->getBody()->getContents());
+		if(is_array($response)){
+			//print_r($response);
+			return $response;
+		}
+		// Check if response is json, and decode it if it is.
+		$respHeaders = $response->getHeaders();
+		//
+		if( array_key_exists('Content-Type',$respHeaders) && in_array("application/json",$respHeaders['Content-Type']) ){
+			$res = json_decode($response->getBody()->getContents(),true);
 		}else{
 			$res = $response->getBody()->getContents();
 		}
-		return array("code"=>$response->getStatusCode(),"data"=>$res);
+		$out = array("code"=>$response->getStatusCode(),"data"=>$res);
+		return $out;
 	}
 	
 	
@@ -116,8 +124,9 @@ class idpconn {
 			]
 		];
 		
-		return $client->request('POST', $this->idpServer.$this->tokenEndpoint, $options);
 		
+		$response =  $client->request('POST', $this->idpServer.$this->tokenEndpoint, $options);
+		return $this->format($response);
 	}
 	
 	private function authorization_code_link($redir_url){

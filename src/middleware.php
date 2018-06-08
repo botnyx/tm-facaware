@@ -12,6 +12,10 @@ use Slim\Http\Response;
 
 class middleware {
 	
+	
+	var $noredir = true;
+	var $refreshTokenLifeTime = 2419200;
+	
 	function __construct($settings,$container){
 		
 		
@@ -121,24 +125,21 @@ class middleware {
 				//$isAuthenticated = $this->cookieMan->verifyCookies();
 				
 			}
-			
 			if($e->getCode()==404){
 				// no cookies
 				
 			}
 		}
 		/* var $isAuthenticated is set. */
-		
-		
-		
-		
+		$this->userAccessToken = $this->cookieMan->getAccessToken();
 		
 		/************************************************************************
 		
 				CALLBACK URL
 		
 		************************************************************************/
-		if( $url_path==$this->callback){
+		if( $url_path==$this->callback_uri){
+			error_log(__LINE__." ".__FILE__ );
 			$this->route_Callback();
 			return $response;
 		}
@@ -149,12 +150,13 @@ class middleware {
 		
 		************************************************************************/
 		if( $url_path==$this->token_uri){
+			
+			#echo "TOKEN";
+			#die();
 			// This is the Token URI. we proxy this request to our internal IDP.
 			$response = $next($request, $response);
 			return $response;
 		}
-		
-		
 		
 		/************************************************************************
 		
@@ -162,13 +164,10 @@ class middleware {
 		
 		************************************************************************/
 		if( $url_path==$this->authorize_uri){
-			return $this->route_Authorize($isAuthenticated,$response);
+			
+			return $this->route_Authorize($isAuthenticated,$request,$response);
 
 		}
-		
-		
-		
-		
 		
 		/************************************************************************
 		
@@ -189,7 +188,7 @@ class middleware {
 			//https://accounts.trustmaster.nl
 			
 			
-			$endpoint = $this->facade_idp_server."/authorize?response_type=code&client_id=".$this->client_id."&state=".time()."&redirect_uri=".$redirectUrl;
+			$endpoint = $this->idp_server."/authorize?response_type=code&client_id=".$this->client_id."&state=".time()."&redirect_uri=".$redirectUrl;
 			$this->idp->getLink($redir_url);
 			
 			if($this->noredir ){
@@ -199,11 +198,6 @@ class middleware {
 			return $response->withRedirect($endpoint, 302);
 		}
 		
-		
-		
-		
-		
-			
 		$response = $next($request, $response);
 		
 		
@@ -213,9 +207,10 @@ class middleware {
 	
 
 	
-	private function route_Authorize_authorized($request,$response){
+	private function route_Authorize_authenticated($request,$response){
 		echo "You are authenticated!\n";
 		$allGetVars = $request->getQueryParams();
+		$allPostPutVars = $request->getParsedBody();
 		$method 	= $request->getMethod();
 
 		if($method!='POST'){
@@ -226,28 +221,42 @@ class middleware {
 				'error'=>''
 			]);	
 		}else{
-			echo "receive GrantScreen data via post.";
-			print_r($allPostPutVars);
-
-
-
-			#print_r($this->cookieMan);
-			#$this->cookieMan->payload->aud
-
-			$R = $this->idp->receiveAuthCode(strtolower($allPostPutVars['authorized']),$allGetVars['client_id'],$this->cookieMan->payload->sub);
-
+			echo "receive GrantScreen data via post.<br>";
+			#print_r($allPostPutVars);
+			
+			
+			$decodedJWT = $this->jwt->decode($this->userAccessToken);
+			
+			$decodedJWT->sub;
+			$decodedJWT->exp;
+			$decodedJWT->scope;
+			//getAccessToken();
+			#echo "<pre>";
+			#var_dump( $this->authorize_uri);
+			#var_dump( $this->server);
+			
+			
+			
+			$R = $this->idp->getAuthorizationCodeFromRedirect(	strtolower(	$allPostPutVars['authorized']),
+																			   $allGetVars['client_id'],
+																			   $decodedJWT->sub,
+																			   $this->server,
+																			   $this->authorize_uri);
+			
+			
 
 			if($R['code']==302){
 				// YES we have a redirect!
-				$R['data']['code'];
-				$R['data']['state'];
+				$R['data'];
+				#$R['data']['state'];
 				$R['data']['url'];
+				
 				$parsedUrl = parse_url($R['data']['url']);
-				var_dump($parsedUrl);
+				#var_dump($parsedUrl);
 
 
 				parse_str($parsedUrl['query'], $idp_response);
-				var_dump($idp_response);
+				#var_dump($idp_response);
 
 				$uri = $R['data']['url']."&redirect_uri=".$allGetVars['redirect_uri'];
 
@@ -278,28 +287,41 @@ class middleware {
 	}
 	
 	
-	private function route_Authorize_unauthorized($request,$response){
-		echo "You are NOT loggedin!\n";
-		echo "present LOGIN screen\n";
+	private function route_Authorize_unauthenticated($request,$response){
+		if($this->noredir ) echo "<pre>You are NOT loggedin!\n";
+		
+		$allPostPutVars = $request->getParsedBody();
 		$allGetVars = $request->getQueryParams();
 		$method 	= $request->getMethod();
 		
-		echo $method."\n";
 		if($method=='POST'){
 			//$authorizeRoute->login();
-			echo "Referred via :".$_SESSION['lastUrl']."\n";
-
-			$r = $this->idp->oauthLogin($allPostPutVars['TMinputEmail']."@trustmaster.nl",$allPostPutVars['TMinputPassword']);
+			echo "Referred via :".$allGetVars['redirect_uri'] ."\n";
+			
+			
+			// request token from IDP server.
+			$r = $this->idp->getTokenByUserCredentials( $allPostPutVars['TMinputEmail']."@trustmaster.nl",$allPostPutVars['TMinputPassword']);
+			
+			
+			
+			
 			if($r['code']==200){
-				// OK!
+				// Response OK, we have a token now.
 				// Doublecheck by verifying the the JWT token. 
-				if(!$this->cookieMan->verifyJWT($r['data']['access_token']) ){
+				if(!$this->jwt->decode($r['data']['access_token']) ){
 					echo "Something terrible happened, jwt didnt pass verification!\n";
 					die();
 				}
-
+				
+				echo "JWT decode success!";
+				// get the payload.
+				$result = $this->jwt->getPayload();
+				
 				echo "We are authenticated! set cookies!\n";
-				$this->cookieMan->setNewCookies($r['data']);
+				
+				
+				#setNewCookies();
+				$this->cookieMan->setNewCookies($r['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
 
 				if($this->noredir ){
 					echo "\nREDIRECT:\n<a href='https://accounts.trustmaster.nl".$_SERVER['REQUEST_URI']."'>".$_SERVER['REQUEST_URI']."</a>";
@@ -312,6 +334,7 @@ class middleware {
 				#print_r($r);
 				#die();
 			}else{
+				if($this->noredir )echo "present LOGIN screen\n";
 				// nok!
 				return $this->container['view']->render($response, 'base-layout.phtml', [
 					'screen' => 'signin',
@@ -338,11 +361,13 @@ class middleware {
 		#echo "middleware: "."We are at the AUTHORIZE URI\n";
 		#echo "Referred via :".$allGetVars['redirect_uri']."\n";
 		if($isAuthenticated){
-			return $this->route_Authorize_authorized($request,$response);
+			error_log("Authenticated.");
+			return $this->route_Authorize_authenticated($request,$response);
 		}
 		else
 		{
-			return $this->route_Authorize_unauthorized($request,$response);
+			error_log("Not authenticated.");
+			return $this->route_Authorize_unauthenticated($request,$response);
 		}
 	}
 	
@@ -351,6 +376,74 @@ class middleware {
 		
 	
 	
+    private function validateContainer($container)
+    {
+        if (is_a($container, ArrayAccess::class)) {
+            return $container;
+        }
+
+        if (method_exists($container, 'set')) {
+            return $container;
+        }
+
+        throw new \InvalidArgumentException("\$container does not implement ArrayAccess or contain a 'set' method");
+    }
+	
+	
+	 /**
+     * Helper method to set the token value in the container instance.
+     *
+     * @param array $token The token from the incoming request.
+     *
+     * @return void
+     */
+    private function setToken(array $token)
+    {
+        if (is_a($this->container, '\\ArrayAccess')) {
+            $this->container['token'] = $token;
+            return;
+        }
+
+        $this->container->set('token', $token);
+    }
+	
+	/**
+     * Returns a callable function to be used as a authorization middleware with a specified scope.
+     *
+     * @param array $scopes Scopes require for authorization.
+     *
+     * @return Authorization
+     */
+    public function withRequiredScope(array $scopes)
+    {
+        $clone = clone $this;
+        $clone->scopes = $clone->formatScopes($scopes);
+        return $clone;
+    }
+    /**
+     * Helper method to ensure given scopes are formatted properly.
+     *
+     * @param array $scopes Scopes required for authorization.
+     *
+     * @return array The formatted scopes array.
+     */
+    private function formatScopes(array $scopes)
+    {
+        if (empty($scopes)) {
+            return [null]; //use at least 1 null scope
+        }
+        array_walk(
+            $scopes,
+            function (&$scope) {
+                if (is_array($scope)) {
+                    $scope = implode(' ', $scope);
+                }
+            }
+        );
+        return $scopes;
+    }	
+
+
 	
 	
 	

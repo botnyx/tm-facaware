@@ -31,17 +31,17 @@ class cookiemanager {
 	
 	public function verifyCookies(){
 		
-		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$httpOnlyPrefix.$refreshTokenCookieName]) ){
+		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$this->httpOnlyPrefix.$refreshTokenCookieName]) ){
 			// no valid cookie!
 			$error = 'No cookies found!';
-    		throw new Exception($error,404);
+    		throw new \Exception($error,404);
 		}
 		
 		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
 			// only refresh cookie!
 			// init tokenRefresh!
 			$error = 'No Tokencookie, but found a refreshCookie!';
-    		throw new Exception($error,408);
+    		throw new \Exception($error,408);
 		}
 		
 		if(isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
@@ -57,6 +57,10 @@ class cookiemanager {
 		
 	}
 	
+	public function getAccessToken(){		
+		
+		return $_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName];
+	}
 	
 	public function getRefreshToken(){		
 		
@@ -66,28 +70,34 @@ class cookiemanager {
 	
 	
 	
-	private function setNewCookies($tokenResponse){
+	
+	
+	public function setNewCookies($tokenResponse,$decodedToken,$refreshTokenLifeTime=2419200){
 		
+		#print_r($tokenResponse);
+		#print_r($decodedToken);
 		
 		$this->accessToken =$tokenResponse['access_token'];
 		
-		$this->setHttpOnlyCookie($httpOnlyPrefix.$tokenCookieName ,$tokenResponse['access_token'],$this->payload->exp);
+		// SSID
+		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->tokenCookieName ,$tokenResponse['access_token'],$decodedToken->exp);
 		
-		$this->ssid_expires = $this->payload->exp;
+		$this->ssid_expires = $decodedToken->exp;
+		// SID
+		$this->setCookie($this->tokenCookieName,$tokenResponse['access_token'],$decodedToken->exp);
 		
-		$this->setCookie($tokenCookieName,$tokenResponse['access_token'],$this->payload->exp);
+		$this->sid_expires = $decodedToken->exp;
 		
-		$this->sid_expires = $this->payload->exp;
-		
-		$this->setCookie($expireCookieName,$this->payload->exp,$this->payload->exp);
+		$this->setCookie($this->expireCookieName,$decodedToken->exp,$decodedToken->exp);
 
 		$this->refreshToken =$tokenResponse['refresh_token'];
 		
-		$this->setHttpOnlyCookie($httpOnlyPrefix.$refreshTokenCookieName ,$tokenResponse['refresh_token'],time()+2419200);
+		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->refreshTokenCookieName ,$tokenResponse['refresh_token'],time()+$refreshTokenLifeTime);
 		
-		$this->setHttpOnlyCookie($httpOnlyPrefix.$expireCookieName ,time()+2419200,time()+2419200);
+		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->expireCookieName ,time()+$refreshTokenLifeTime,time()+$refreshTokenLifeTime);
+		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->expireCookieName ,time()+$refreshTokenLifeTime,time()+$refreshTokenLifeTime);
 		
-		$this->srid_expires = time()+2419200;
+		$this->srid_expires = time()+$refreshTokenLifeTime;
 		
 	}
 		

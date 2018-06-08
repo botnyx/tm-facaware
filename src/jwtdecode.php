@@ -19,7 +19,7 @@ class jwtdecode{
 	} 
 	
 	public function decode($jwt_access_token,$algo=OPENSSL_ALGO_SHA256){
-		
+		#echo "JWTDECODE";
 		//$token = json_decode($curlResponse);
 
 		//$jwt_access_token = $token['access_token'];
