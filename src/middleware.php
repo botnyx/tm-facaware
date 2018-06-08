@@ -313,11 +313,11 @@ class middleware {
 					die();
 				}
 				
-				echo "JWT decode success!";
+				//echo "JWT decode success!";
 				// get the payload.
 				$result = $this->jwt->getPayload();
 				
-				echo "We are authenticated! set cookies!\n";
+				//echo "We are authenticated! set cookies!\n";
 				
 				
 				#setNewCookies();
