@@ -1,0 +1,9 @@
+{
+    "name": "botnyx/tm-facaware",
+    "autoload": {
+        "psr-4": {"botnyx\\tmfacaware\\": "src"}	
+	},
+    "require": {
+        "php": ">=7.0"
+    }
+}

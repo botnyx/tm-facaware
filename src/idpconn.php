@@ -1,0 +1,281 @@
+<?php 
+
+
+namespace botnyx\tmfacaware;
+
+use ArrayAccess;
+use Slim\Http\Request;
+use Slim\Http\Response;
+
+// \botnyx\tmfacaware\idpconn
+
+
+class idpconn {
+	
+	var $idpServer;
+	var $client_id;
+	var $client_secret;
+	
+	var $tokenEndpoint		= '/token';
+	var $authorizeEndpoint	= '/authorize';
+	
+	var $userAgent = 'trustmaster/1.0';
+	
+	var $debug 			= false;
+	var $timeout 		= 5;
+	var $connecttimeout = 3.14;
+	
+		
+	var $accessToken; 
+	
+	
+	function __construct($server,$clientid,$clientsecret){
+
+		$this->client_id 	= $clientid;
+		$this->client_secret= $clientsecret;
+		$this->idpServer = $server;
+		
+		
+	}
+	
+	public function getTokenByAuthCode ($authorizationCode){
+		$response  = $this->exchange_authorization_code_for_token($authorizationCode);
+		return $this->format($response);
+	}
+	
+	public function getTokenByRefreshToken (){
+		$response  = $this->exchange_refreshtoken_for_token($refreshToken);
+		return $this->format($response);
+	}
+	
+	public function getTokenByClientCredentials (){
+		$response  = $this->client_credentials();
+		return $this->format($response);
+	}
+	
+	public function getTokenByUserCredentials ($user,$pass){
+		$response  = $this->user_credentials($user,$pass);
+		return $this->format($response);
+	}
+	
+	
+	
+	public function getAuthorizationCodeFromRedirect (){
+		// $idpServer;$idpauthorizeEndpoint;
+		
+		$response = $this->get_authorization_code_from_redirect($authorized,$client_id,$user_id,$idpServer,$idpauthorizeEndpoint);
+		return $this->format($response);
+	}
+		
+	public function getLink($redir_url){
+		return $this->authorization_code_link($redir_url);
+		
+	}
+	
+	
+	
+	public function format ($response){
+		//$response->getStatusCode();
+		//$response->getBody()->getContents();
+		
+		$contenttype = $response->getHeader('Content-Type');
+		
+		if($contenttype=="application/json"){
+			$res = json_decode($response->getBody()->getContents());
+		}else{
+			$res = $response->getBody()->getContents();
+		}
+		return array("code"=>$response->getStatusCode(),"data"=>$res);
+	}
+	
+	
+	private function user_credentials($user,$pass){
+		// grant_type=
+		// $ curl -u TestClient:TestSecret https://api.mysite.com/token -d 'grant_type=password&username=bshaffer&password=brent123'
+		
+		$client = new \GuzzleHttp\Client();
+		
+		$options = [
+			'timeout' => $this->timeout,
+			'connect_timeout' => $this->connecttimeout,
+			'allow_redirects'=>[
+				'protocols'=>['https']
+			],
+			'http_errors' => false,
+			'auth' => [
+				$this->client_id, $this->client_secret
+			],
+			'headers' => [
+        		'Accept'     => 'application/json',
+				'User-Agent' => 'trustmaster/1.0'
+			],
+			'form_params' => [
+				'grant_type' => 'password',
+				'username' => $user,
+				'password' => $pass
+			]
+		];
+		
+		return $client->request('POST', $this->idpServer.$this->tokenEndpoint, $options);
+		
+	}
+	
+	private function authorization_code_link($redir_url){
+		// grant_type=
+		//$redir = "https://myredirecturi.com/callback";
+		$url = $this->idpServer.$this->tokenEndpoint."?response_type=code&client_id=".$this->client_id."&redirect_uri=".$redir_url;
+		
+		return $url;
+		
+	}
+		
+	private function exchange_authorization_code_for_token($authorizationCode){
+		// grant_type=
+		// $ curl -u TestClient:TestSecret https://api.mysite.com/token -d 'grant_type=authorization_code&code=xyz'
+		
+		//curl -u TestClient:TestSecret https://api.mysite.com/token -d 'grant_type=authorization_code&code=xyz'
+		$client = new \GuzzleHttp\Client();
+		#echo "<pre>";
+		$options = [
+			'timeout' => $this->timeout,
+			'connect_timeout' => $this->connecttimeout,
+			'allow_redirects'=>[
+				'protocols'=>['https']
+			],
+			'debug' => $this->debug,
+			'http_errors' => false,
+			'auth' => [
+				$this->client_id, $this->client_secret
+			],
+			'form_params' => [
+				'grant_type' => 'authorization_code',
+				'code' =>$authorizationCode
+			],
+			'headers' => [
+        		'Accept'     => 'application/json',
+				'User-Agent' => 'trustmaster/1.0'
+			]
+		];
+		
+		return $client->request('POST', $this->idpServer.$this->tokenEndpoint, $options);
+	}
+		
+	private function client_credentials(){
+		// grant_type=client_credentials
+		// $ curl -u TestClient:TestSecret https://api.mysite.com/token -d 'grant_type=client_credentials'
+		
+		$client = new \GuzzleHttp\Client();
+		
+		$options = [
+			'timeout' => $this->timeout,
+			'connect_timeout' => $this->connecttimeout,
+			'allow_redirects'=>[
+				'protocols'=>['https']
+			],
+			'debug' => $this->debug,
+			'http_errors' => false,
+			'auth' => [
+				$this->client_id, $this->client_secret
+			],
+			'json'=>[
+				'grant_type'=>'client_credentials'
+			],
+			'headers' => [
+				'Accept'     => 'application/json',
+        		'User-Agent' => $this->userAgent
+			]
+		];
+		
+		return $client->request('POST', $this->idpServer.$this->tokenEndpoint, $options );
+	}
+	
+	private function exchange_refreshtoken_for_token($refreshToken){
+		// grant_type=refresh_token
+		// refresh_token=tGzv3JOkF0XG5Qx2TlKWIA
+		// $ curl -u TestClient:TestSecret https://api.mysite.com/token -d 'grant_type=password&username=bshaffer&password=brent123'
+		$client = new \GuzzleHttp\Client();
+		
+		$options = [
+			'timeout' => $this->timeout,
+			'connect_timeout' => $this->connecttimeout,
+			'debug' => $this->debug,
+			'http_errors' => false,
+			'auth' => [
+				$this->client_id, $this->client_secret
+			],
+			'form_params' => [
+				'grant_type' => 'refresh_token',
+				'refresh_token' => $refreshToken
+			],
+			'headers' => [
+				'Accept'     => 'application/json',
+        		'User-Agent' => $this->userAgent
+			]
+		];
+		
+		return $client->request('POST', $this->idpServer.$this->tokenEndpoint,$options );
+	}
+	
+	
+	/*
+		this function is 'special'
+	*/
+	private function get_authorization_code_from_redirect($authorized,$client_id,$user_id,$idpServer,$idpauthorizeEndpoint){
+		
+		// grant_type=
+		// https://api.mysite.com/authorize?response_type=code&client_id=TestClient&redirect_uri=https://myredirecturi.com/cb
+		// A successful authorization will pass the client the authorization code in the URL via the supplied redirect_uri:
+		// https://myredirecturi.com/cb?code=SplxlOBeZQQYbYS6WxSbIA&state=xyz
+		// Once this is done, a token can be requested using the authorization code.  exchange_authorization_code_for_token()
+		
+		//POST=>
+		// https://idp.trustmaster.nl/authorize?response_type=code&client_id=jerryhopper.com&state=1528031546&user_id=1234
+		$state = time();
+		
+		$url = $idpServer.$idpauthorizeEndpoint."?response_type=code&client_id=".$client_id."&state=".$state."&user_id=".$user_id;
+		#echo "receiveAuthCode posts :\n";
+		#echo $url."\n";
+		$client = new \GuzzleHttp\Client();
+		#echo "<pre>";
+		$options = [
+			'timeout' => $this->timeout,
+			'connect_timeout' => $this->connecttimeout,
+			
+			'http_errors' => false,
+			'form_params' => [
+				'authorized' => $authorized
+			],
+			'allow_redirects' => false,
+			'headers' => [
+        		'User-Agent' => 'trustmaster/1.0',
+				'Accept'     => 'application/json',
+				'Authorization'=> 'Bearer '.$this->accessToken
+			],
+		];
+		
+		#print_r($options);
+		#echo "<pre>";
+		$response = $client->request('POST', $url , $options);
+		
+		
+		if($response->getStatusCode()==302){
+			
+			
+			
+			$result_array['url']=$response->getHeader('Location')[0];
+			
+			$status = array('code'=>$response->getStatusCode(),"data"=>$result_array);
+		}else{
+			$status = array('code'=>$response->getStatusCode(),"data"=>json_decode($response->getBody()->getContents()));
+			
+		}
+		return $status;	
+		
+		
+		
+		
+		
+		
+	}
+	
+}
