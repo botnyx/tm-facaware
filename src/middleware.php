@@ -13,7 +13,7 @@ use Slim\Http\Response;
 class middleware {
 	
 	
-	var $noredir = true;
+	var $noredir = false;
 	var $refreshTokenLifeTime = 2419200;
 	
 	function __construct($settings,$container){
@@ -264,7 +264,7 @@ class middleware {
 					echo "<a href='$uri'>REDIR!</a>";
 					die();
 				}
-				$response = \Slim\Http\Response();
+				//$response = \Slim\Http\Response();
 				
 				return $response->withRedirect($uri, 301);
 
