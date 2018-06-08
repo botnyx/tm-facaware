@@ -140,7 +140,7 @@ class middleware {
 		************************************************************************/
 		if( $url_path==$this->callback_uri){
 			error_log(__LINE__." ".__FILE__ );
-			$this->route_Callback();
+			$response = $this->route_Callback();
 			return $response;
 		}
 
@@ -371,7 +371,16 @@ class middleware {
 		}
 	}
 	
-	
+	private function routeCallback(){
+		$allGetVars 	= $request->getQueryParams();
+		
+		if($this->noredir){
+			echo "<a href='".$allUrlVars['redirect_uri']."'>".$allUrlVars['redirect_uri']."</a>";
+			die();
+		}
+		return $response->withRedirect($allUrlVars['redirect_uri'], 302);
+			
+	}
 	
 		
 	
