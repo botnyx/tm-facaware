@@ -408,12 +408,12 @@ class middleware {
 			#print_r($r);
 			#die();
 		}else{
-			if($this->noredir )echo "present LOGIN screen\n";
-			die("**");
-			// nok!
+			if($this->noredir )echo "show Callback error screen\n";
+			
+			
 			return $this->container['view']->render($response, 'base-layout.phtml', [
-				'screen' => 'signin',
-				'error'=>$r
+				'screen' => 'callbackerror',
+				'error'=>$allGetVars
 			]);	
 		}
 			
