@@ -140,7 +140,7 @@ class middleware {
 		************************************************************************/
 		if( $url_path==$this->callback_uri){
 			error_log(__LINE__." ".__FILE__ );
-			$response = $this->route_Callback();
+			$response = $this->route_Callback($request,$response);
 			return $response;
 		}
 
@@ -371,9 +371,59 @@ class middleware {
 		}
 	}
 	
-	private function routeCallback(){
+	
+	
+	private function route_Callback($request,$response){
 		$allGetVars 	= $request->getQueryParams();
+		$allGetVars['code'];
 		
+		$result = $this->idp->getTokenByAuthCode($allGetVars['code']);
+		
+		#var_dump($result);
+		
+		if($result['code']==200){
+			// Response OK, we have a token now.
+			// Doublecheck by verifying the the JWT token. 
+			if(!$this->jwt->decode($result['data']['access_token']) ){
+				echo "Something terrible happened, jwt didnt pass verification!\n";
+				die();
+			}
+			//echo "JWT decode success!";
+			// get the payload.
+			//$this->jwt->getPayload();
+			//cho "We are authenticated! set cookies!\n";
+
+			#setNewCookies();
+			$this->cookieMan->setNewCookies($result['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
+			
+			
+			if($this->noredir ){
+				echo "\nREDIRECT:\n<a href='".$allGetVars['redirect_uri']."'>".$allGetVars['redirect_uri']."</a>";
+				die();
+			}
+
+			return $response->withRedirect($allGetVars['redirect_uri'], 301);
+
+			#var_dump($_SERVER['REQUEST_URI']);
+			#print_r($r);
+			#die();
+		}else{
+			if($this->noredir )echo "present LOGIN screen\n";
+			die("**");
+			// nok!
+			return $this->container['view']->render($response, 'base-layout.phtml', [
+				'screen' => 'signin',
+				'error'=>$r
+			]);	
+		}
+			
+		
+		
+		
+		
+		print_r($r);
+		echo "route_Callback";
+		die();
 		if($this->noredir){
 			echo "<a href='".$allUrlVars['redirect_uri']."'>".$allUrlVars['redirect_uri']."</a>";
 			die();

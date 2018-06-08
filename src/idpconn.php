@@ -143,7 +143,9 @@ class idpconn {
 		// $ curl -u TestClient:TestSecret https://api.mysite.com/token -d 'grant_type=authorization_code&code=xyz'
 		
 		//curl -u TestClient:TestSecret https://api.mysite.com/token -d 'grant_type=authorization_code&code=xyz'
+		
 		$client = new \GuzzleHttp\Client();
+		//die("x");
 		#echo "<pre>";
 		$options = [
 			'timeout' => $this->timeout,
