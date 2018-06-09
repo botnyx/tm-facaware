@@ -120,6 +120,8 @@ class middleware {
 				// exchange refreshtoken for new token.
 				$newtoken = $this->idp->exchange_refresh_token_for_token($rtoken);
 				
+				$this->tokenResponse($newtoken);
+				
 				// set the new token
 				//$this->cookieMan->setNewCookies($newtoken);
 				//$isAuthenticated = $this->cookieMan->verifyCookies();
@@ -182,7 +184,7 @@ class middleware {
 			
 			$redirectUrl = $_SERVER['SCRIPT_URI'];
 			
-			echo "PROTECTED URL : ".$redirectUrl."\n";
+			//echo "PROTECTED URL : ".$redirectUrl."\n";
 			$_SESSION['lastUrl']= $redirectUrl;
 			
 			//https://accounts.trustmaster.nl
@@ -259,7 +261,7 @@ class middleware {
 				#var_dump($idp_response);
 
 				$uri = $R['data']['url']."&redirect_uri=".$allGetVars['redirect_uri'];
-
+				
 				if($this->noredir ){
 					echo "<a href='$uri'>REDIR!</a>";
 					die();
@@ -382,20 +384,10 @@ class middleware {
 		#var_dump($result);
 		
 		if($result['code']==200){
-			// Response OK, we have a token now.
-			// Doublecheck by verifying the the JWT token. 
-			if(!$this->jwt->decode($result['data']['access_token']) ){
-				echo "Something terrible happened, jwt didnt pass verification!\n";
-				die();
-			}
-			//echo "JWT decode success!";
-			// get the payload.
-			//$this->jwt->getPayload();
-			//cho "We are authenticated! set cookies!\n";
-
-			#setNewCookies();
-			$this->cookieMan->setNewCookies($result['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
 			
+			
+			
+			$this->tokenResponse($result);
 			
 			if($this->noredir ){
 				echo "\nREDIRECT:\n<a href='".$allGetVars['redirect_uri']."'>".$allGetVars['redirect_uri']."</a>";
@@ -429,6 +421,21 @@ class middleware {
 			die();
 		}
 		return $response->withRedirect($allUrlVars['redirect_uri'], 302);
+			
+	}
+	
+	
+	
+	private function tokenResponse($result){
+		// Response OK, we have a token now.
+		// Doublecheck by verifying the the JWT token. 
+		if(!$this->jwt->decode($result['data']['access_token']) ){
+			echo "Something terrible happened, jwt didnt pass verification!\n";
+			die();
+		}
+		
+		$this->cookieMan->setNewCookies($result['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
+			
 			
 	}
 	
