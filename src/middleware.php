@@ -120,11 +120,10 @@ class middleware {
 				// exchange refreshtoken for new token.
 				$newtoken = $this->idp->exchange_refresh_token_for_token($rtoken);
 				
+				// proccess the tokenresponse.
 				$this->tokenResponse($newtoken);
 				
-				// set the new token
-				//$this->cookieMan->setNewCookies($newtoken);
-				//$isAuthenticated = $this->cookieMan->verifyCookies();
+				
 				
 			}
 			if($e->getCode()==404){
