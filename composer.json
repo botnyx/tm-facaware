@@ -4,6 +4,8 @@
         "psr-4": {"botnyx\\tmfacaware\\": "src"}	
 	},
     "require": {
-        "php": ">=7.0"
+        "php": ">=7.0",
+		"guzzlehttp/guzzle": "^6.2",
+        "graylog2/gelf-php": "^1.5"
     }
 }
