@@ -28,15 +28,72 @@ class idpconn {
 		
 	var $accessToken; 
 	
+	var $clientTokenFile = '../src/clienttoken.json.tmp';
 	
-	function __construct($server,$clientid,$clientsecret){
+	function __construct($server,$clientid,$clientsecret,$jwt_pub_key=false){
 
 		$this->client_id 	= $clientid;
 		$this->client_secret= $clientsecret;
 		$this->idpServer = $server;
 		
+		$this->tokenCache();
 		
 	}
+	
+	
+	private function tokenCache(){
+		#echo "<pre>";
+		#echo "tokencache()\n";
+		// check if token in cache.
+		if(file_exists($this->clientTokenFile)){
+			
+			// 
+			#echo "EXIST\n";
+			$handle = fopen($this->clientTokenFile, "r");
+			$token = json_decode(fread($handle, filesize($this->clientTokenFile)),true);
+			fclose($handle);
+			
+			#echo (time()-filemtime($this->clientTokenFile))."\n";
+			#echo ($token['data']['expires_in']-120)."\n";
+			
+			if(  (time()-filemtime($this->clientTokenFile)) > ($token['data']['expires_in']-120) ){
+				// Get token.
+				error_log("idpconn - renew token.");
+				$token = $this->getTokenByClientCredentials();
+				$handle = fopen($this->clientTokenFile, "w");
+				fwrite($handle, json_encode($token) ) ;
+				fclose($handle);
+			}
+				
+			
+		}else{
+			// Get token.
+			#echo "NEW\n";
+			$token = $this->getTokenByClientCredentials();
+			$handle = fopen($this->clientTokenFile, "w");
+			fwrite($handle, json_encode($token) ) ;
+			fclose($handle);
+		}	
+		
+		
+		
+		#print_r($token);
+		#die("xxxxxx");
+		// 
+		$this->accessToken = $token['data']['access_token'];
+		
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	public function getTokenByAuthCode ($authorizationCode){
 		$response  = $this->exchange_authorization_code_for_token($authorizationCode);
@@ -49,7 +106,13 @@ class idpconn {
 	}
 	
 	public function getTokenByClientCredentials (){
+		
 		$response  = $this->client_credentials();
+		
+		#echo "<pre> getTokenByClientCredentials()\n";
+	
+		#echo $this->idpServer.$this->tokenEndpoint."\n";
+		
 		return $this->format($response);
 	}
 	
@@ -179,25 +242,27 @@ class idpconn {
 		
 		$options = [
 			'timeout' => $this->timeout,
-			'connect_timeout' => $this->connecttimeout,
-			'allow_redirects'=>[
-				'protocols'=>['https']
+			'form_params'=>[
+				'grant_type'=>'client_credentials'
 			],
-			'debug' => $this->debug,
 			'http_errors' => false,
 			'auth' => [
 				$this->client_id, $this->client_secret
 			],
-			'json'=>[
-				'grant_type'=>'client_credentials'
+			'connect_timeout' => $this->connecttimeout,
+			'allow_redirects'=>[
+				'protocols'=>['https']
 			],
+			'debug' =>  $this->debug,
+			
 			'headers' => [
-				'Accept'     => 'application/json',
+				'Content-Type'=>'application/x-www-form-urlencoded',
         		'User-Agent' => $this->userAgent
 			]
 		];
 		
 		return $client->request('POST', $this->idpServer.$this->tokenEndpoint, $options );
+		
 	}
 	
 	private function exchange_refreshtoken_for_token($refreshToken){
@@ -288,5 +353,61 @@ class idpconn {
 		
 		
 	}
+	
+	
+	
+	
+	
+	//   $this->idp->post('/oauthserver/users',['email' => $email_dc,'password' => $password_dc]);
+	
+	private function createClient(){
+		$client = new \GuzzleHttp\Client([
+			// Base URI is used with relative requests
+			'base_uri' => $this->idpServer,
+			// You can set any number of default request options.
+			'headers' => [
+        		'User-Agent' => 'trustmaster/1.0',
+				'Accept'     => 'application/json',
+				'Authorization'=> 'Bearer '.$this->accessToken
+			],
+			'connect_timeout' => 3.14,
+			'timeout' => 3.14,
+			'allow_redirects'=>[
+				'protocols'=>['https']	
+			],
+			'http_errors' => false
+		]);
+		
+		return $client;
+	}
+	
+	public function post($path,$json=array()){
+		error_log("IDP POST!");
+		$options = ['json' => $json];
+		$response = $this->call('POST',$path,$options);
+		return $this->format($response);
+		#return array("code"=>$response->getStatusCode(),"data"=>$response->getBody()->getContents());
+	}
+	
+	
+	private function call($type='GET',$path,$options){
+		
+		$client = $this->createClient();
+		$response = $client->request(strtoupper($type), $this->idpServer.$path,$options);
+		
+		
+		#error_log($response->getStatusCode()." call(".$type.",".$path.")");
+		
+		
+		
+		if($response->getStatusCode()!=200){ 
+			throw new \Exception($response->getBody()->getContents(),$response->getStatusCode());
+	   	}
+		return $response;
+	}
+	
+	
+	
+	
 	
 }
