@@ -13,7 +13,7 @@ use Slim\Http\Response;
 class middleware {
 	
 	
-	var $noredir = false;
+	var $noredir = true;
 	var $refreshTokenLifeTime = 2419200;
 	
 	function __construct($settings,$container){
@@ -120,10 +120,9 @@ class middleware {
 				// exchange refreshtoken for new token.
 				$newtoken = $this->idp->exchange_refresh_token_for_token($rtoken);
 				
-				// proccess the tokenresponse.
-				$this->tokenResponse($newtoken);
-				
-				
+				// set the new token
+				//$this->cookieMan->setNewCookies($newtoken);
+				//$isAuthenticated = $this->cookieMan->verifyCookies();
 				
 			}
 			if($e->getCode()==404){
@@ -181,9 +180,10 @@ class middleware {
 			error_log("middleware: "."ANON NOT ALLOWED!");
 			
 			
+			
 			$redirectUrl = $_SERVER['SCRIPT_URI'];
 			
-			//echo "PROTECTED URL : ".$redirectUrl."\n";
+			echo "PROTECTED URL : ".$redirectUrl."\n";
 			$_SESSION['lastUrl']= $redirectUrl;
 			
 			//https://accounts.trustmaster.nl
@@ -232,9 +232,14 @@ class middleware {
 			$decodedJWT->exp;
 			$decodedJWT->scope;
 			//getAccessToken();
-			#echo "<pre>";
-			#var_dump( $this->authorize_uri);
-			#var_dump( $this->server);
+			echo "<pre>";
+			print_r($allGetVars);
+			echo "</pre>";
+			echo "<pre>";
+			print_r($decodedJWT);
+			echo "</pre>";
+			var_dump( $this->authorize_uri);
+			var_dump( $this->server);
 			
 			
 			
@@ -243,9 +248,10 @@ class middleware {
 																			   $decodedJWT->sub,
 																			   $this->server,
 																			   $this->authorize_uri);
-			
-			
-
+			echo "<pre>";
+			print_r($R);
+			echo "</pre>";
+			#die();
 			if($R['code']==302){
 				// YES we have a redirect!
 				$R['data'];
@@ -261,6 +267,7 @@ class middleware {
 
 				$uri = $R['data']['url']."&redirect_uri=".$allGetVars['redirect_uri'];
 				
+				$this->noredir = true;
 				if($this->noredir ){
 					echo "<a href='$uri'>REDIR!</a>";
 					die();
@@ -271,6 +278,10 @@ class middleware {
 
 
 			}else{
+				error_log("idp->getAuthorizationCodeFromRedirect returns: ".$R['code']);
+				echo "\n>".$this->server;
+				echo "\n>".$this->authorize_uri;
+				
 				$R['data']['error'];
 				$R['data']['error_description'];
 
@@ -383,10 +394,20 @@ class middleware {
 		#var_dump($result);
 		
 		if($result['code']==200){
+			// Response OK, we have a token now.
+			// Doublecheck by verifying the the JWT token. 
+			if(!$this->jwt->decode($result['data']['access_token']) ){
+				echo "Something terrible happened, jwt didnt pass verification!\n";
+				die();
+			}
+			//echo "JWT decode success!";
+			// get the payload.
+			//$this->jwt->getPayload();
+			//cho "We are authenticated! set cookies!\n";
+
+			#setNewCookies();
+			$this->cookieMan->setNewCookies($result['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
 			
-			
-			
-			$this->tokenResponse($result);
 			
 			if($this->noredir ){
 				echo "\nREDIRECT:\n<a href='".$allGetVars['redirect_uri']."'>".$allGetVars['redirect_uri']."</a>";
@@ -420,21 +441,6 @@ class middleware {
 			die();
 		}
 		return $response->withRedirect($allUrlVars['redirect_uri'], 302);
-			
-	}
-	
-	
-	
-	private function tokenResponse($result){
-		// Response OK, we have a token now.
-		// Doublecheck by verifying the the JWT token. 
-		if(!$this->jwt->decode($result['data']['access_token']) ){
-			echo "Something terrible happened, jwt didnt pass verification!\n";
-			die();
-		}
-		
-		$this->cookieMan->setNewCookies($result['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
-			
 			
 	}
 	
