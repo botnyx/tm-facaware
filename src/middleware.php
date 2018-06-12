@@ -13,7 +13,7 @@ use Slim\Http\Response;
 class middleware {
 	
 	
-	var $noredir = true;
+	var $noredir = false;
 	var $refreshTokenLifeTime = 2419200;
 	
 	function __construct($settings,$container){
@@ -232,14 +232,14 @@ class middleware {
 			$decodedJWT->exp;
 			$decodedJWT->scope;
 			//getAccessToken();
-			echo "<pre>";
-			print_r($allGetVars);
-			echo "</pre>";
-			echo "<pre>";
-			print_r($decodedJWT);
-			echo "</pre>";
-			var_dump( $this->authorize_uri);
-			var_dump( $this->server);
+			#echo "<pre>";
+			#print_r($allGetVars);
+			#echo "</pre>";
+			#echo "<pre>";
+			#print_r($decodedJWT);
+			#echo "</pre>";
+			#var_dump( $this->authorize_uri);
+			#var_dump( $this->server);
 			
 			
 			
@@ -248,9 +248,9 @@ class middleware {
 																			   $decodedJWT->sub,
 																			   $this->server,
 																			   $this->authorize_uri);
-			echo "<pre>";
-			print_r($R);
-			echo "</pre>";
+			#echo "<pre>";
+			#print_r($R);
+			#echo "</pre>";
 			#die();
 			if($R['code']==302){
 				// YES we have a redirect!
@@ -267,7 +267,7 @@ class middleware {
 
 				$uri = $R['data']['url']."&redirect_uri=".$allGetVars['redirect_uri'];
 				
-				$this->noredir = true;
+				//$this->noredir = true;
 				if($this->noredir ){
 					echo "<a href='$uri'>REDIR!</a>";
 					die();
@@ -308,7 +308,7 @@ class middleware {
 		
 		if($method=='POST'){
 			//$authorizeRoute->login();
-			echo "Referred via :".$allGetVars['redirect_uri'] ."\n";
+			//echo "Referred via :".$allGetVars['redirect_uri'] ."\n";
 			
 			
 			// request token from IDP server.
@@ -335,8 +335,13 @@ class middleware {
 				#setNewCookies();
 				$this->cookieMan->setNewCookies($r['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
 
+				
+				
+				$this->server;
+				//https://accounts.trustmaster.nl
+				
 				if($this->noredir ){
-					echo "\nREDIRECT:\n<a href='https://accounts.trustmaster.nl".$_SERVER['REQUEST_URI']."'>".$_SERVER['REQUEST_URI']."</a>";
+					echo "\nREDIRECT:\n<a href='".$_SERVER['REQUEST_URI']."'>".$_SERVER['REQUEST_URI']."</a>";
 					die();
 				}
 				
