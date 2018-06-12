@@ -209,24 +209,41 @@ class middleware {
 
 	
 	private function route_Authorize_authenticated($request,$response){
-		echo "You are authenticated!\n";
-		$allGetVars = $request->getQueryParams();
+		#echo "You are authenticated!\n";
+		$allGetVars 	= $request->getQueryParams();
 		$allPostPutVars = $request->getParsedBody();
-		$method 	= $request->getMethod();
-
+		$method 		= $request->getMethod();
+		
+		$decodedJWT = $this->jwt->decode($this->userAccessToken);
+		/*
+			TODO: authorization administration
+			
+			if user already granted for the exact scopes before, we need to skip the 'question' to authorize.
+			
+			
+			
+			
+			
+		*/
 		if($method!='POST'){
-			echo "present Grant Auth screen\n";
+			/* method = GET,  present authorization screen for this client */
+			#echo "present Grant Auth screen\n";
+			
+			##############################################################################
 			return $this->container['view']->render($response, 'base-layout.phtml', [
 				'screen' => 'authorize',
-				'data'=>array('client_id'=>$allGetVars['client_id']),
+				'data'=>array('client_id'=>$allGetVars['client_id'],'jwt'=>$decodedJWT),
 				'error'=>''
-			]);	
+			]);
+			##############################################################################
+			
+			
 		}else{
-			echo "receive GrantScreen data via post.<br>";
+			#echo "receive GrantScreen data via post.<br>";
 			#print_r($allPostPutVars);
 			
 			
-			$decodedJWT = $this->jwt->decode($this->userAccessToken);
+			//$decodedJWT = $this->jwt->decode($this->userAccessToken);
 			
 			$decodedJWT->sub;
 			$decodedJWT->exp;
@@ -267,6 +284,7 @@ class middleware {
 
 				$uri = $R['data']['url']."&redirect_uri=".$allGetVars['redirect_uri'];
 				
+
 				//$this->noredir = true;
 				if($this->noredir ){
 					echo "<a href='$uri'>REDIR!</a>";
