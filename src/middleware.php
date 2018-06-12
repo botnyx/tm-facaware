@@ -221,11 +221,31 @@ class middleware {
 			if user already granted for the exact scopes before, we need to skip the 'question' to authorize.
 			
 			
+			$allGetVars['client_id']
 			
 			
+			$decodedJWT->scope scopes
+			
+			$decodedJWT->aud  aud = accounts.
+			
+			$decodedJWT->sub  user-123@trustmaster.nl
+			
+			
+			
+			client_id:user_id  scope yes
+			
+		if(){
+			
+		}
 			
 		*/
-		if($method!='POST'){
+		
+		
+		
+		$alreadyGranted = false;
+		
+		
+		if($method!='POST' && $alreadyGranted ){
 			/* method = GET,  present authorization screen for this client */
 			#echo "present Grant Auth screen\n";
 			
@@ -238,82 +258,87 @@ class middleware {
 			##############################################################################
 			
 			
-		}else{
-			#echo "receive GrantScreen data via post.<br>";
-			#print_r($allPostPutVars);
-			
-			
-			//$decodedJWT = $this->jwt->decode($this->userAccessToken);
-			
-			$decodedJWT->sub;
-			$decodedJWT->exp;
-			$decodedJWT->scope;
-			//getAccessToken();
-			#echo "<pre>";
-			#print_r($allGetVars);
-			#echo "</pre>";
-			#echo "<pre>";
-			#print_r($decodedJWT);
-			#echo "</pre>";
-			#var_dump( $this->authorize_uri);
-			#var_dump( $this->server);
-			
-			
-			
-			$R = $this->idp->getAuthorizationCodeFromRedirect(	strtolower(	$allPostPutVars['authorized']),
-																			   $allGetVars['client_id'],
-																			   $decodedJWT->sub,
-																			   $this->server,
-																			   $this->authorize_uri);
-			#echo "<pre>";
-			#print_r($R);
-			#echo "</pre>";
-			#die();
-			if($R['code']==302){
-				// YES we have a redirect!
-				$R['data'];
-				#$R['data']['state'];
-				$R['data']['url'];
-				
-				$parsedUrl = parse_url($R['data']['url']);
-				#var_dump($parsedUrl);
-
-
-				parse_str($parsedUrl['query'], $idp_response);
-				#var_dump($idp_response);
-
-				$uri = $R['data']['url']."&redirect_uri=".$allGetVars['redirect_uri'];
-				
-
-				//$this->noredir = true;
-				if($this->noredir ){
-					echo "<a href='$uri'>REDIR!</a>";
-					die();
-				}
-				//$response = \Slim\Http\Response();
-				
-				return $response->withRedirect($uri, 301);
-
-
-			}else{
-				error_log("idp->getAuthorizationCodeFromRedirect returns: ".$R['code']);
-				echo "\n>".$this->server;
-				echo "\n>".$this->authorize_uri;
-				
-				$R['data']['error'];
-				$R['data']['error_description'];
-
-
-			}
-			//print_r($R);
-			die();
-
-
-
-
-
-			die();
 		}
+		
+		
+		
+		#echo "receive GrantScreen data via post.<br>";
+		#print_r($allPostPutVars);
+
+
+		//$decodedJWT = $this->jwt->decode($this->userAccessToken);
+
+		$decodedJWT->sub;
+		$decodedJWT->exp;
+		$decodedJWT->scope;
+		//getAccessToken();
+		#echo "<pre>";
+		#print_r($allGetVars);
+		#echo "</pre>";
+		#echo "<pre>";
+		#print_r($decodedJWT);
+		#echo "</pre>";
+		#var_dump( $this->authorize_uri);
+		#var_dump( $this->server);
+		
+		if($alreadyGranted){
+			$userAuthorizationResponse='yes';
+		}else{
+			$userAuthorizationResponse = $allPostPutVars['authorized'];
+		}
+		
+		
+
+		$R = $this->idp->getAuthorizationCodeFromRedirect(	strtolower(	$userAuthorizationResponse ),
+																		   $allGetVars['client_id'],
+																		   $decodedJWT->sub,
+																		   $this->server,
+																		   $this->authorize_uri);
+		#echo "<pre>";
+		#print_r($R);
+		#echo "</pre>";
+		#die();
+		if($R['code']==302){
+			// YES we have a redirect!
+			$R['data'];
+			#$R['data']['state'];
+			$R['data']['url'];
+
+			$parsedUrl = parse_url($R['data']['url']);
+			#var_dump($parsedUrl);
+
+
+			parse_str($parsedUrl['query'], $idp_response);
+			#var_dump($idp_response);
+
+			$uri = $R['data']['url']."&redirect_uri=".$allGetVars['redirect_uri'];
+
+			//$this->noredir = true;
+			if($this->noredir ){
+				echo "<a href='$uri'>REDIR!</a>";
+				die();
+			}
+			//$response = \Slim\Http\Response();
+
+			###############################################################################
+			return $response->withRedirect($uri, 301);
+			###############################################################################
+
+		}else{
+			error_log("idp->getAuthorizationCodeFromRedirect returns: ".$R['code']);
+			echo "\n>".$this->server;
+			echo "\n>".$this->authorize_uri;
+
+			$R['data']['error'];
+			$R['data']['error_description'];
+
+
+		}
+		//print_r($R);
+		die();
+
+
+
 	}
 	
 	
