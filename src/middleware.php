@@ -198,6 +198,8 @@ class middleware {
 			}
 			return $response->withRedirect($endpoint, 302);
 		}
+		$request = $request->withAttribute("access_token",$this->cookieMan->getAccessToken());
+		$request = $request->withAttribute("refresh_token",$this->cookieMan->getAccessToken());
 
 		$response = $next($request, $response);
 
