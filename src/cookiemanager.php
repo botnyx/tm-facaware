@@ -31,7 +31,7 @@ class cookiemanager {
 	
 	public function verifyCookies(){
 		
-		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$this->httpOnlyPrefix.$refreshTokenCookieName]) ){
+		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
 			// no valid cookie!
 			$error = 'No cookies found!';
     		throw new \Exception($error,404);
@@ -68,7 +68,18 @@ class cookiemanager {
 	}
 	
 	
-	
+	public function delSIDCookies(){
+		$this->setCookie($this->httpOnlyPrefix.$this->refreshTokenCookieName,'DELETED',$expire=-99999,$path="");
+		$this->setCookie($this->httpOnlyPrefix.$this->tokenCookieName,'DELETED',$expire=-99999,$path="");
+		$this->setCookie($this->tokenCookieName,'DELETED',$expire=-99999,$path="");
+		$this->setCookie($this->expireCookieName,'DELETED',$expire=-99999,$path="");
+		
+		unset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]);
+		unset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]);
+		unset($_COOKIE[$this->tokenCookieName]);
+		unset($_COOKIE[$this->expireCookieName]);
+		
+	}
 	
 	
 	

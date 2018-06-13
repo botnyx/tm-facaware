@@ -11,52 +11,52 @@ use Slim\Http\Response;
 
 
 class middleware {
-
-
+	
+	
 	var $noredir = false;
 	var $refreshTokenLifeTime = 2419200;
-
+	
 	function __construct($settings,$container){
-
-
+		
+		
 		$this->server 			=  $settings->idp_server;
 		$this->client_id 		=  $settings->idp_clientid;
 		$this->client_secret	=  $settings->idp_clientsecret;
 		$this->jwt_public_key 	=  $settings->idp_public_key;
-
+		
 		$this->token_uri 		=  $settings->idp_token_uri;
 		$this->authorize_uri 	=  $settings->idp_authorize_uri;
 		$this->callback_uri		=  $settings->local_callback_uri;
-
-
+		
+		
 		if( isset($settings->facade)){
 			error_log("ARE YOU SURE THIS IS THE OAUTH FACADE?");
 			//echo "ARE YOU SURE THIS IS THE OAUTH FACADE?";
 		}
-
+		
 		if( isset($settings->facade->idp_server)){
 			$this->facade_idp_server = $settings->facade->idp_server;
 		}else{
 			$this->facade_idp_server = $settings->idp_server;
 		}
-
+		
 		if( isset($settings->facade->idp_token_uri)){
 			$this->facade_idp_token_uri = $settings->facade->idp_token_uri;
 		}else{
 			$this->facade_idp_token_uri = $settings->idp_token_uri;
 		}
-
+		
 		if( isset($settings->facade->idp_authorize_uri)){
 			$this->facade_idp_authorize_uri = $settings->facade->idp_authorize_uri;
 		}else{
 			$this->facade_idp_authorize_uri = $settings->idp_authorize_uri;
 		}
-
-
-
+		
+		
+		
 		#var_dump( isset($settings->facade->idp_servers));
 		#die();
-
+		
 		/*
 		$a['client_id'];
 		$a['client_secret'];
@@ -66,28 +66,28 @@ class middleware {
 		$a['callback_uri'];
 		$a['token_uri'];
 		*/
-
+		
 		#$this->server	=$server;
 		#$this->client_id=$clientid;
 		#$this->client_secret=$clientsecret;
 		#$this->jwt_public_key=$jwt_public_key;
-
+		
 		$this->container = $this->validateContainer($container);
-
+		
 		// $this->idp = new \botnyx\tmfacaware\idpconn();
-
+		
 		$this->jwt = new \botnyx\tmfacaware\jwtdecode($this->jwt_public_key);
 
-
-
+		
+		
 		$this->idp = new \botnyx\tmfacaware\idpconn($this->server,$this->client_id,$this->client_secret);
-
-
+		
+		
 		// start a new cookiemanager.
 		$this->cookieMan = new \botnyx\tmfacaware\cookiemanager($this->server,$this->client_id,$this->client_secret,$this->jwt_public_key);
 	}
-
-
+	
+	
 	/**
      * Example middleware invokable class
      *
@@ -99,44 +99,82 @@ class middleware {
      */
     public function __invoke($request, $response, $next)
     {
-		//
+		// 
 		$allGetVars 	= $request->getQueryParams();
 		$allPostPutVars = $request->getParsedBody();
 		$allUrlVars 	= $request->getQueryParams();
 		//
 		$url_path 	= $request->getUri()->getPath();
 		$method 	= $request->getMethod();
-
+		
 		/* Authentification check */
 		$isAuthenticated = false;
 		try{
 			$isAuthenticated = $this->cookieMan->verifyCookies();
+			
 		}catch(\Exception $e){
+			//echo "COOKIE EXCEPTION:".$e->getCode()."<br>";
 			/*  404 No cookies found or 408 No Tokencookie, but found a refreshCookie! 	*/
 			if($e->getCode()==408){
 				// only refreshcookie
 				// get the refreshtoken from cookie.
+				
 				$rtoken = $this->cookieMan->getRefreshToken();
+				#echo $rtoken;
+				
 				// exchange refreshtoken for new token.
-				$newtoken = $this->idp->exchange_refresh_token_for_token($rtoken);
+				$newtoken = $this->idp->getTokenByRefreshToken($rtoken);
+				#print_r($newtoken);
+				$redirectUrl = "https://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
+				if($newtoken['code']==200){
 
-				// set the new token
-				//$this->cookieMan->setNewCookies($newtoken);
+					if(!$this->jwt->decode($newtoken['data']['access_token']) ){
+						echo "Something terrible happened, jwt didnt pass verification!\n";
+						var_dump($r['data']['access_token']);
+						die();
+					}
+
+					//echo "JWT decode success!";
+					// get the payload.
+					$result = $this->jwt->getPayload();
+
+					// set the new token
+					// setNewCookies($tokenResponse,$decodedToken
+					$this->cookieMan->setNewCookies($newtoken['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
+					if($this->noredir ){
+						echo "<a href='$redirectUrl'>REDIR!</a>";
+						die();
+					}
+					return $response->withRedirect($redirectUrl, 301);
+				}else{
+					echo "<pre>";
+					var_dump( $newtoken['data']['error_description'] );
+					$this->cookieMan->delSIDCookies();
+					
+					
+					if($this->noredir ){
+						echo "<a href='$redirectUrl'>REDIR!</a>";
+						die();
+					}
+					return $response->withRedirect($redirectUrl, 301);
+					die();
+					
+				}
 				//$isAuthenticated = $this->cookieMan->verifyCookies();
-
+				
 			}
 			if($e->getCode()==404){
 				// no cookies
-
+				
 			}
 		}
 		/* var $isAuthenticated is set. */
 		$this->userAccessToken = $this->cookieMan->getAccessToken();
-
+		
 		/************************************************************************
-
+		
 				CALLBACK URL
-
+		
 		************************************************************************/
 		if( $url_path==$this->callback_uri){
 			error_log(__LINE__." ".__FILE__ );
@@ -145,70 +183,72 @@ class middleware {
 		}
 
 		/***********************************************************************
-
+		
 				TOKEN URL
-
+		
 		************************************************************************/
 		if( $url_path==$this->token_uri){
-
+			
 			#echo "TOKEN";
 			#die();
 			// This is the Token URI. we proxy this request to our internal IDP.
 			$response = $next($request, $response);
 			return $response;
 		}
-
+		
 		/************************************************************************
-
+		
 				AUTHORIZE URL
-
+		
 		************************************************************************/
 		if( $url_path==$this->authorize_uri){
-
+			
 			return $this->route_Authorize($isAuthenticated,$request,$response);
 
 		}
-
+		
 		/************************************************************************
-
+		
 				Any url that needs AUTH, but not anonymous
-
+		
 		************************************************************************/
+		
 		if( !in_array('anon',$this->scopes) && !$isAuthenticated && $url_path!=$this->authorize_uri ){
 			// Anonymous access is not allowed.
 			// in a normal oauth situation we should be redirected to the authorisation endpoint.
 			error_log("middleware: "."ANON NOT ALLOWED!");
-
-
-
+			
+			
 			$redirectUrl = $_SERVER['SCRIPT_URI'];
 			$redirectUrl = "https://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
 			echo "PROTECTED URL : ".$redirectUrl."\n";
 			$_SESSION['lastUrl']= $redirectUrl;
-
+			
 			//https://accounts.trustmaster.nl
-
-
+			
+			
 			$endpoint = $this->server."/authorize?response_type=code&client_id=".$this->client_id."&state=".time()."&redirect_uri=".$redirectUrl;
 			$this->idp->getLink($redir_url);
-
+			
 			if($this->noredir ){
 				echo "REDIRECT:\n<a href='".$endpoint."'>".$endpoint."</a>";
 				die();
 			}
 			return $response->withRedirect($endpoint, 302);
 		}
+		
+		// Add the tokens to the request as attribute.
 		$request = $request->withAttribute("access_token",$this->cookieMan->getAccessToken());
 		$request = $request->withAttribute("refresh_token",$this->cookieMan->getAccessToken());
-
+		
+		
 		$response = $next($request, $response);
-
-
-        return $response;
+		
+		
+        return $response;	
 	}
-
-
-
+	
+	
 
 	private function route_Authorize_authenticated($request,$response){
 		#echo "You are authenticated!\n";
@@ -342,54 +382,49 @@ class middleware {
 
 
 	}
-
-
+	
 	private function route_Authorize_unauthenticated($request,$response){
 		if($this->noredir ) echo "<pre>You are NOT loggedin!\n";
-
+		
 		$allPostPutVars = $request->getParsedBody();
 		$allGetVars = $request->getQueryParams();
 		$method 	= $request->getMethod();
-
+		
 		if($method=='POST'){
 			//$authorizeRoute->login();
-			//echo "Referred via :".$allGetVars['redirect_uri'] ."\n";
-
-
+			echo "Referred via :".$allGetVars['redirect_uri'] ."\n";
+			
+			
 			// request token from IDP server.
 			$r = $this->idp->getTokenByUserCredentials( $allPostPutVars['TMinputEmail']."@trustmaster.nl",$allPostPutVars['TMinputPassword']);
-
-
-
-
+			
+			
+			
+			
 			if($r['code']==200){
 				// Response OK, we have a token now.
-				// Doublecheck by verifying the the JWT token.
+				// Doublecheck by verifying the the JWT token. 
 				if(!$this->jwt->decode($r['data']['access_token']) ){
 					echo "Something terrible happened, jwt didnt pass verification!\n";
+					var_dump($r['data']['access_token']);
 					die();
 				}
-
+				
 				//echo "JWT decode success!";
 				// get the payload.
 				$result = $this->jwt->getPayload();
-
+				
 				//echo "We are authenticated! set cookies!\n";
-
-
+				
+				
 				#setNewCookies();
 				$this->cookieMan->setNewCookies($r['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
 
-
-
-				$this->server;
-				//https://accounts.trustmaster.nl
-
 				if($this->noredir ){
-					echo "\nREDIRECT:\n<a href='".$_SERVER['REQUEST_URI']."'>".$_SERVER['REQUEST_URI']."</a>";
+					echo "\nREDIRECT:\n<a href='https://accounts.trustmaster.nl".$_SERVER['REQUEST_URI']."'>".$_SERVER['REQUEST_URI']."</a>";
 					die();
 				}
-
+				
 				return $response->withRedirect($_SERVER['REQUEST_URI'], 301);
 
 				#var_dump($_SERVER['REQUEST_URI']);
@@ -401,7 +436,7 @@ class middleware {
 				return $this->container['view']->render($response, 'base-layout.phtml', [
 					'screen' => 'signin',
 					'error'=>$r
-				]);
+				]);	
 			}
 
 
@@ -410,14 +445,14 @@ class middleware {
 		}else{
 			return $this->container['view']->render($response, 'base-layout.phtml', [
 					'screen' => 'signin'
-			]);
+			]);	
 		}
 
 			//var_dump($method);
 
 	}
-
-
+	
+	
 	private function route_Authorize($isAuthenticated,$request,$response){
 		#$allGetVars 	= $request->getQueryParams();
 		#echo "middleware: "."We are at the AUTHORIZE URI\n";
@@ -432,22 +467,26 @@ class middleware {
 			return $this->route_Authorize_unauthenticated($request,$response);
 		}
 	}
-
-
-
+	
+	
+	
 	private function route_Callback($request,$response){
 		$allGetVars 	= $request->getQueryParams();
 		$allGetVars['code'];
-
+		
 		$result = $this->idp->getTokenByAuthCode($allGetVars['code']);
-
+		
+		#echo "<pre>";		
+		#var_dump($this->idp);
 		#var_dump($result);
-
+		
 		if($result['code']==200){
 			// Response OK, we have a token now.
-			// Doublecheck by verifying the the JWT token.
+			// Doublecheck by verifying the the JWT token. 
 			if(!$this->jwt->decode($result['data']['access_token']) ){
 				echo "Something terrible happened, jwt didnt pass verification!\n";
+				var_dump($result);
+					die();
 				die();
 			}
 			//echo "JWT decode success!";
@@ -457,8 +496,8 @@ class middleware {
 
 			#setNewCookies();
 			$this->cookieMan->setNewCookies($result['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
-
-
+			
+			
 			if($this->noredir ){
 				echo "\nREDIRECT:\n<a href='".$allGetVars['redirect_uri']."'>".$allGetVars['redirect_uri']."</a>";
 				die();
@@ -471,18 +510,22 @@ class middleware {
 			#die();
 		}else{
 			if($this->noredir )echo "show Callback error screen\n";
-
-
+			echo "<pre>";		
+			//var_dump($this->idp);
+			var_dump($result);
+			
+			
+			
 			return $this->container['view']->render($response, 'base-layout.phtml', [
 				'screen' => 'callbackerror',
 				'error'=>$allGetVars
-			]);
+			]);	
 		}
-
-
-
-
-
+			
+		
+		
+		
+		
 		print_r($r);
 		echo "route_Callback";
 		die();
@@ -491,12 +534,12 @@ class middleware {
 			die();
 		}
 		return $response->withRedirect($allUrlVars['redirect_uri'], 302);
-
+			
 	}
-
-
-
-
+	
+		
+	
+	
     private function validateContainer($container)
     {
         if (is_a($container, ArrayAccess::class)) {
@@ -509,8 +552,8 @@ class middleware {
 
         throw new \InvalidArgumentException("\$container does not implement ArrayAccess or contain a 'set' method");
     }
-
-
+	
+	
 	 /**
      * Helper method to set the token value in the container instance.
      *
@@ -527,7 +570,7 @@ class middleware {
 
         $this->container->set('token', $token);
     }
-
+	
 	/**
      * Returns a callable function to be used as a authorization middleware with a specified scope.
      *
@@ -562,10 +605,10 @@ class middleware {
             }
         );
         return $scopes;
-    }
+    }	
 
 
-
-
-
+	
+	
+	
 }

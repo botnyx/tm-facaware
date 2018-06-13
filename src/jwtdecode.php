@@ -23,7 +23,10 @@ class jwtdecode{
 		//$token = json_decode($curlResponse);
 
 		//$jwt_access_token = $token['access_token'];
-
+		#echo "<pre>";
+		#var_dump($this->jwt_public_key);
+		#echo "</pre>";
+		
 		$separator = '.';
 
 		if (2 !== substr_count($jwt_access_token, $separator, $algo)) {
