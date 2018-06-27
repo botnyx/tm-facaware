@@ -101,7 +101,7 @@ class idpconn {
 		return $this->format($response);
 	}
 	
-	public function getTokenByRefreshToken (){
+	public function getTokenByRefreshToken ($refreshToken){
 		$response  = $this->exchange_refreshtoken_for_token($refreshToken);
 		return $this->format($response);
 	}
