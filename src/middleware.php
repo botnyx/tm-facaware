@@ -147,12 +147,12 @@ class middleware {
 					}
 					return $response->withRedirect($redirectUrl, 301);
 				}else{
-					echo "<pre>";
-					var_dump( $newtoken['data']['error_description'] );
 					$this->cookieMan->delSIDCookies();
 					
 					
 					if($this->noredir ){
+						echo "<pre>";
+						var_dump( $newtoken['data']['error_description'] );
 						echo "<a href='$redirectUrl'>REDIR!</a>";
 						die();
 					}
@@ -227,7 +227,8 @@ class middleware {
 			//https://accounts.trustmaster.nl
 			
 			
-			$endpoint = $this->server."/authorize?response_type=code&client_id=".$this->client_id."&state=".time()."&redirect_uri=".$redirectUrl;
+			$endpoint = $this->server."/authorize?response_type=code&client_id=". $this->client_id."&state=". time()."&redirect_uri=". $redirectUrl;
+			
 			$this->idp->getLink($redirectUrl);
 			
 			if($this->noredir ){
@@ -248,7 +249,12 @@ class middleware {
         return $response;	
 	}
 	
-	
+	private function checkGrants($client,$user,$scopes){
+		//$checkGrants();
+		
+		
+		return false;
+	}
 
 	private function route_Authorize_authenticated($request,$response){
 		#echo "You are authenticated!\n";
@@ -257,6 +263,20 @@ class middleware {
 		$method 		= $request->getMethod();
 
 		$decodedJWT = $this->jwt->decode($this->userAccessToken);
+		
+		
+		
+		if($decodedJWT==false){
+			// JWT token is invalid!
+			// 
+			
+		}
+		
+		
+		$alreadyGranted = $this->checkGrants( $decodedJWT->aud, $decodedJWT->sub, $decodedJWT->scope );
+		
+		
+		
 		/*
 			TODO: authorization administration
 
@@ -282,12 +302,12 @@ class middleware {
 
 		*/
 
+		
+		
 
-
-		$alreadyGranted = false;
-
-
-		if($method!='POST' && $alreadyGranted ){
+		//$alreadyGranted = false;
+		//&& $alreadyGranted==true
+		if( $method=='GET' &&  $alreadyGranted == false ){
 			/* method = GET,  present authorization screen for this client */
 			#echo "present Grant Auth screen\n";
 
@@ -298,7 +318,6 @@ class middleware {
 				'error'=>''
 			]);
 			##############################################################################
-
 
 		}
 
@@ -328,17 +347,24 @@ class middleware {
 		}else{
 			$userAuthorizationResponse = $allPostPutVars['authorized'];
 		}
-
-
+		#var_dump($method);
+		#var_dump($alreadyGranted);
+		#var_dump($userAuthorizationResponse);
+		#var_dump($allPostPutVars);
+		
+		
 
 		$R = $this->idp->getAuthorizationCodeFromRedirect(	strtolower(	$userAuthorizationResponse ),
 																		   $allGetVars['client_id'],
 																		   $decodedJWT->sub,
 																		   $this->server,
 																		   $this->authorize_uri);
-		#echo "<pre>";
-		#print_r($R);
-		#echo "</pre>";
+		
+		
+		
+		#die("UuUuU");
+		
+		
 		#die();
 		if($R['code']==302){
 			// YES we have a redirect!
@@ -368,9 +394,13 @@ class middleware {
 
 		}else{
 			error_log("idp->getAuthorizationCodeFromRedirect returns: ".$R['code']);
-			echo "\n>".$this->server;
+			echo "\n--->".$this->server;
 			echo "\n>".$this->authorize_uri;
-
+			echo "idp->getAuthorizationCodeFromRedirect returns: ".$R['code'];
+			echo "<pre>";
+			print_r($R);
+			echo "</pre>";
+			
 			$R['data']['error'];
 			$R['data']['error_description'];
 
