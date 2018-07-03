@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 
 namespace botnyx\tmfacaware;
@@ -11,42 +11,44 @@ use Slim\Http\Response;
 
 class cookiemanager {
 	var $cookiedomain;
-
+	
 	var $jwt_public_key = false;
-
+	
 	var $httpOnlyPrefix			= "S";
 	var $tokenCookieName 		= "SID";
 	var $refreshTokenCookieName = "RID";
 	var $expireCookieName 		= "EAT";
-
+	var $localeCookieName		= "LOC";
+	var $zoneinfoCookieName		= "TZ";
+	
 	function __construct($jwt_public_key = false){
-
+		
 		$this->jwt_public_key = $jwt_public_key;
-
+		
 		$this->cookiedomain = $_SERVER['HTTP_HOST'];
 		$this->requestedUrl = $_SERVER['SCRIPT_URI']."?".$_SERVER['QUERY_STRING'];
-
+		
 	}
-
-
+	
+	
 	public function verifyCookies(){
-
-		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
+		
+		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$this->httpOnlyPrefix.$refreshTokenCookieName]) ){
 			// no valid cookie!
 			$error = 'No cookies found!';
     		throw new \Exception($error,404);
 		}
-
+		
 		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
 			// only refresh cookie!
 			// init tokenRefresh!
 			$error = 'No Tokencookie, but found a refreshCookie!';
     		throw new \Exception($error,408);
 		}
-
+		
 		if(isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
 			// both cookies found!
-
+			
 			return true;
 			#if($this->jwt_public_key==false){
 			#	return true;
@@ -54,87 +56,81 @@ class cookiemanager {
 			#	return $this->verifyJWT($_COOKIE[$httpOnlyPrefix.$tokenCookieName],$this->jwt_public_key);
 			#}
 		}
-
+		
 	}
-
-	public function getAccessToken(){
-
+	
+	public function getAccessToken(){		
+		
 		return $_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName];
 	}
-
-	public function getRefreshToken(){
-
+	
+	public function getRefreshToken(){		
+		
 		return $_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName];
 	}
-
-
-	public function delSIDCookies(){
-		#$this->setCookie($this->httpOnlyPrefix.$this->refreshTokenCookieName,'DELETED',$expire=-99999,$path="");
-		#$this->setCookie($this->httpOnlyPrefix.$this->tokenCookieName,'DELETED',$expire=-99999,$path="");
-		#$this->setCookie($this->tokenCookieName,'DELETED',$expire=-99999,$path="");
-		#$this->setCookie($this->expireCookieName,'DELETED',$expire=-99999,$path="");
-		
-		unset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]);
-		unset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]);
-		unset($_COOKIE[$this->tokenCookieName]);
-		unset($_COOKIE[$this->expireCookieName]);
-
-	}
-
-
-
+	
+	
+	
+	
+	
+	
 	public function setNewCookies($tokenResponse,$decodedToken,$refreshTokenLifeTime=2419200){
-
+		
 		#print_r($tokenResponse);
 		#print_r($decodedToken);
-
+		
 		$this->accessToken =$tokenResponse['access_token'];
-
+		
 		// SSID
 		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->tokenCookieName ,$tokenResponse['access_token'],$decodedToken->exp);
-
+		
 		$this->ssid_expires = $decodedToken->exp;
 		// SID
 		$this->setCookie($this->tokenCookieName,$tokenResponse['access_token'],$decodedToken->exp);
-
+		
 		$this->sid_expires = $decodedToken->exp;
-
+		
 		$this->setCookie($this->expireCookieName,$decodedToken->exp,$decodedToken->exp);
+		
+		
+		$this->setCookie($this->localeCookieName,$decodedToken->locale);
+		
+		$this->setCookie($this->zoneinfoCookieName,$decodedToken->zoneinfo);
 
 		$this->refreshToken =$tokenResponse['refresh_token'];
-
+		
 		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->refreshTokenCookieName ,$tokenResponse['refresh_token'],time()+$refreshTokenLifeTime);
-
+		
 		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->expireCookieName ,time()+$refreshTokenLifeTime,time()+$refreshTokenLifeTime);
 		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->expireCookieName ,time()+$refreshTokenLifeTime,time()+$refreshTokenLifeTime);
-
+		
 		$this->srid_expires = time()+$refreshTokenLifeTime;
-
+		
 	}
-
-	private function setCookie($name,$value,$expire=0,$path="/"){
+		
+	private function setCookie($name,$value,$expire=0,$path=""){
 		$httponly = false;
 		$secure = true;
 		$domain = $this->cookiedomain;
-
+		
 		setcookie ( $name ,  $value  ,  $expire , $path  ,  $domain , $secure ,  $httponly  );
 	}
-
-	private function setHttpOnlyCookie($name,$value,$expire,$path="/"){
+	
+	private function setHttpOnlyCookie($name,$value,$expire,$path=""){
 		$httponly = true;
 		$secure = true;
 		$domain = $this->cookiedomain;
-
+		
 		setcookie ( $name ,  $value  ,  $expire , $path  ,  $domain , $secure ,  $httponly  );
 	}
-
-
-
-
-
-
+	
+	
+	
+	
+	
+	
 	private function verifyJWT($jwt_access_token,$jwt_public_key){
-
+		
 		//$token = json_decode($curlResponse);
 
 		//$jwt_access_token = $token['access_token'];
@@ -166,7 +162,7 @@ class cookiemanager {
 
 		// output the JWT Access Token payload
 		return json_decode(base64_decode($payload));
-
-
+		
+		
 	}
 }
