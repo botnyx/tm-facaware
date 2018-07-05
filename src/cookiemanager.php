@@ -24,7 +24,6 @@ class cookiemanager {
 	function __construct($jwt_public_key = false){
 		
 		$this->jwt_public_key = $jwt_public_key;
-		
 		$this->cookiedomain = $_SERVER['HTTP_HOST'];
 		$this->requestedUrl = $_SERVER['SCRIPT_URI']."?".$_SERVER['QUERY_STRING'];
 		
