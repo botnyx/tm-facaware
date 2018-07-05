@@ -113,10 +113,17 @@ class middleware {
 		/* Authentification check */
 		$isAuthenticated = false;
 		try{
+			
+			if(!isset($_COOKIE['SSID']) && !isset($_COOKIE['SRID']) ){
+				// no valid cookie!
+				#$error = 'No cookies found!';
+				#throw new \Exception($error,404);
+			}
+			
 			$isAuthenticated = $this->cookieMan->verifyCookies();
 			
 		}catch(\Exception $e){
-			$this->log->info("Verify cookie failed. httpcode:".$e->getCode() );
+			$this->log->info("Verify cookie failed. ".$e->getCode().":".$e->getMessage(),array("COOKIES"=>$_COOKIE) );
 			//echo "COOKIE EXCEPTION:".$e->getCode()."<br>";
 			/*  404 No cookies found or 408 No Tokencookie, but found a refreshCookie! 	*/
 			if($e->getCode()==408){
