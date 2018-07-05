@@ -132,6 +132,7 @@ class middleware {
 				if($newtoken['code']==200){
 
 					if(!$this->jwt->decode($newtoken['data']['access_token']) ){
+						
 						echo "Something terrible happened, jwt didnt pass verification!\n";
 						var_dump($r['data']['access_token']);
 						die();
@@ -144,6 +145,8 @@ class middleware {
 					// set the new token
 					// setNewCookies($tokenResponse,$decodedToken
 					$this->cookieMan->setNewCookies($newtoken['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
+					
+					$this->log->info("User logged in, redirect :".$redirectUrl);
 					if($this->noredir ){
 						echo "<a href='$redirectUrl'>REDIR!</a>";
 						die();
@@ -269,11 +272,12 @@ class middleware {
 
 		$decodedJWT = $this->jwt->decode($this->userAccessToken);
 		
-		
+		$this->log->info("Authorized user: (".$decodedJWT->sub.")");
 		
 		if($decodedJWT==false){
 			// JWT token is invalid!
 			// 
+			$this->log->warn("INVALID TOKEN (".$decodedJWT->sub.")");
 			
 		}
 		
@@ -315,7 +319,7 @@ class middleware {
 		if( $method=='GET' &&  $alreadyGranted == false ){
 			/* method = GET,  present authorization screen for this client */
 			#echo "present Grant Auth screen\n";
-
+			
 			##############################################################################
 			return $this->container['view']->render($response, 'base-layout.phtml', [
 				'screen' => 'authorize',
