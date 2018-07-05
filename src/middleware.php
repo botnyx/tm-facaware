@@ -116,6 +116,7 @@ class middleware {
 			$isAuthenticated = $this->cookieMan->verifyCookies();
 			
 		}catch(\Exception $e){
+			$this->log->info("Verify cookie failed. httpcode:".$e->getCode() );
 			//echo "COOKIE EXCEPTION:".$e->getCode()."<br>";
 			/*  404 No cookies found or 408 No Tokencookie, but found a refreshCookie! 	*/
 			if($e->getCode()==408){
@@ -123,7 +124,7 @@ class middleware {
 				// get the refreshtoken from cookie.
 				$rtoken = $this->cookieMan->getRefreshToken();
 				#echo $rtoken;
-				
+				$this->log->info("this->cookieMan->getRefreshToken() [ ".$rtoken." ]" );
 				// exchange refreshtoken for new token.
 				$newtoken = $this->idp->getTokenByRefreshToken($rtoken);
 				#print_r($newtoken);

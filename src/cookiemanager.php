@@ -91,12 +91,14 @@ class cookiemanager {
 		$this->sid_expires = $decodedToken->exp;
 		
 		$this->setCookie($this->expireCookieName,$decodedToken->exp,$decodedToken->exp);
-		
+
+				
 		
 		$this->setCookie($this->localeCookieName,$decodedToken->locale);
 		
 		$this->setCookie($this->zoneinfoCookieName,$decodedToken->zoneinfo);
-
+		
+		
 		$this->refreshToken =$tokenResponse['refresh_token'];
 		
 		$this->setHttpOnlyCookie($this->httpOnlyPrefix.$this->refreshTokenCookieName ,$tokenResponse['refresh_token'],time()+$refreshTokenLifeTime);
