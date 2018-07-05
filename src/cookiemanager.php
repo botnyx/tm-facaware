@@ -32,11 +32,21 @@ class cookiemanager {
 	
 	public function verifyCookies(){
 		
+		
+		
+		
 		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
 			// no valid cookie!
 			$error = 'No cookies found!';
     		throw new \Exception($error,404);
 		}
+		
+		if(!isset($_COOKIE[$this->tokenCookieName]) && isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) ){
+			// no valid cookie!
+			#$error = 'No cookies found!';
+    		#throw new \Exception($error,404);
+		}
+		
 		
 		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
 			// only refresh cookie!
@@ -109,7 +119,7 @@ class cookiemanager {
 		
 	}
 		
-	private function setCookie($name,$value,$expire=0,$path=""){
+	private function setCookie($name,$value,$expire=0,$path="/"){
 		$httponly = false;
 		$secure = true;
 		$domain = $this->cookiedomain;
