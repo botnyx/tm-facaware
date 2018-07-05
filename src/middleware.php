@@ -110,15 +110,14 @@ class middleware {
 		$url_path 	= $request->getUri()->getPath();
 		$method 	= $request->getMethod();
 		
+		
+		
 		/* Authentification check */
 		$isAuthenticated = false;
+		
+		$this->log->info("middleWare [ ".$url_path." ]" );
+		
 		try{
-			
-			if(!isset($_COOKIE['SSID']) && !isset($_COOKIE['SRID']) ){
-				// no valid cookie!
-				#$error = 'No cookies found!';
-				#throw new \Exception($error,404);
-			}
 			
 			$isAuthenticated = $this->cookieMan->verifyCookies();
 			
