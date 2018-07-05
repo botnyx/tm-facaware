@@ -44,6 +44,7 @@ class cookiemanager {
 		if(!isset($_COOKIE[$this->tokenCookieName]) && isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) ){
 			// no valid cookie!
 			#$error = 'No cookies found!';
+			unset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]);
     		#throw new \Exception($error,404);
 		}
 		
