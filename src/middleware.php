@@ -72,6 +72,9 @@ class middleware {
 		#$this->client_secret=$clientsecret;
 		#$this->jwt_public_key=$jwt_public_key;
 		
+		$this->log = $container['logger'];
+		
+		
 		$this->container = $this->validateContainer($container);
 		
 		// $this->idp = new \botnyx\tmfacaware\idpconn();
@@ -230,6 +233,8 @@ class middleware {
 			$endpoint = $this->server."/authorize?response_type=code&client_id=". $this->client_id."&state=". time()."&redirect_uri=". $redirectUrl;
 			
 			$this->idp->getLink($redirectUrl);
+			
+			$this->log->info("Authorized resource requested without any authentication, redirect :".$endpoint);
 			
 			if($this->noredir ){
 				echo "REDIRECT:\n<a href='".$endpoint."'>".$endpoint."</a>";
