@@ -319,7 +319,7 @@ class middleware {
 		if( $method=='GET' &&  $alreadyGranted == false ){
 			/* method = GET,  present authorization screen for this client */
 			#echo "present Grant Auth screen\n";
-			
+			$this->log->info("Grant needed, show authorize screen.",array("userid"=>$decodedJWT->sub) );
 			##############################################################################
 			return $this->container['view']->render($response, 'base-layout.phtml', [
 				'screen' => 'authorize',
@@ -440,10 +440,16 @@ class middleware {
 			
 			
 			
+			
 			if($r['code']==200){
 				// Response OK, we have a token now.
 				// Doublecheck by verifying the the JWT token. 
-				if(!$this->jwt->decode($r['data']['access_token']) ){
+				$decodedJWT = $this->jwt->decode($r['data']['access_token']);
+				
+				if($decodedJWT==false ){
+					$this->log->warn("login failed, invalid JWT".$allPostPutVars['TMinputEmail']."@trustmaster.nl".")", 
+									 array( "userid"=>$allPostPutVars['TMinputEmail']."@trustmaster.nl") 
+					);
 					echo "Something terrible happened, jwt didnt pass verification!\n";
 					var_dump($r['data']['access_token']);
 					die();
@@ -454,7 +460,9 @@ class middleware {
 				$result = $this->jwt->getPayload();
 				
 				//echo "We are authenticated! set cookies!\n";
-				
+				$this->log->info("login success".$decodedJWT->sub.")", 
+									 array( "userid"=>$decodedJWT->sub) 
+					);
 				
 				#setNewCookies();
 				$this->cookieMan->setNewCookies($r['data'],$this->jwt->getPayload(),$this->refreshTokenLifeTime);
@@ -471,6 +479,9 @@ class middleware {
 				#die();
 			}else{
 				if($this->noredir )echo "present LOGIN screen\n";
+				$this->log->warn("login failed".$allPostPutVars['TMinputEmail']."@trustmaster.nl".")", 
+									 array( "userid"=>$allPostPutVars['TMinputEmail']."@trustmaster.nl") 
+					);
 				// nok!
 				return $this->container['view']->render($response, 'base-layout.phtml', [
 					'screen' => 'signin',
