@@ -33,7 +33,7 @@ class cookiemanager {
 	
 	public function verifyCookies(){
 		
-		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$this->httpOnlyPrefix.$refreshTokenCookieName]) ){
+		if(!isset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]) && !isset($_COOKIE[$this->httpOnlyPrefix.$this->refreshTokenCookieName]) ){
 			// no valid cookie!
 			$error = 'No cookies found!';
     		throw new \Exception($error,404);
