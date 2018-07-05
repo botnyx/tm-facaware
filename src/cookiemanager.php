@@ -137,6 +137,13 @@ class cookiemanager {
 	}
 	
 	
+	function delSIDCookies(){
+		unset($_COOKIE[$this->httpOnlyPrefix.$this->tokenCookieName]);
+		unset($_COOKIE[$this->tokenCookieName]);
+		unset($_COOKIE[$this->expireCookieName]);
+		unset($_COOKIE[$this->httpOnlyPrefix.$this->expireCookieName]);
+		
+	}
 	
 	
 	
