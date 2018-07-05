@@ -272,7 +272,7 @@ class middleware {
 
 		$decodedJWT = $this->jwt->decode($this->userAccessToken);
 		
-		$this->log->info("Authorized user: (".$decodedJWT->sub.")");
+		$this->log->info("Authorized user: (".$decodedJWT->sub.")",array("userid"=>$decodedJWT->sub) );
 		
 		if($decodedJWT==false){
 			// JWT token is invalid!
