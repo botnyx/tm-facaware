@@ -121,7 +121,6 @@ class middleware {
 			if($e->getCode()==408){
 				// only refreshcookie
 				// get the refreshtoken from cookie.
-				
 				$rtoken = $this->cookieMan->getRefreshToken();
 				#echo $rtoken;
 				
@@ -130,14 +129,21 @@ class middleware {
 				#print_r($newtoken);
 				$redirectUrl = "https://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
 				if($newtoken['code']==200){
-
-					if(!$this->jwt->decode($newtoken['data']['access_token']) ){
-						
+					
+					
+				
+					$decodedJWT = $this->jwt->decode($newtoken['data']['access_token']);
+					
+					if(!$decodedJWT ){
+						$this->log->info("token refreshed failed." );
 						echo "Something terrible happened, jwt didnt pass verification!\n";
 						var_dump($r['data']['access_token']);
 						die();
 					}
-
+					
+					
+					$this->log->info("token refreshed (".$decodedJWT->sub.")",array("userid"=>$decodedJWT->sub) );
+					
 					//echo "JWT decode success!";
 					// get the payload.
 					$result = $this->jwt->getPayload();
