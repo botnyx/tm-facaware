@@ -13,7 +13,7 @@ use Slim\Http\Response;
 class middleware {
 	
 	
-	var $noredir = false;
+	var $noredir = true;
 	var $refreshTokenLifeTime = 2419200;
 	
 	function __construct($settings,$container){
@@ -110,15 +110,16 @@ class middleware {
 		$url_path 	= $request->getUri()->getPath();
 		$method 	= $request->getMethod();
 		
-		
-		
 		/* Authentification check */
 		$isAuthenticated = false;
-		
-		$this->log->info("middleWare [ ".$url_path." ]" );
-		
 		try{
 			
+			if(!isset($_COOKIE['SSID']) && !isset($_COOKIE['SRID']) ){
+				// no valid cookie!
+				#$error = 'No cookies found!';
+				#throw new \Exception($error,404);
+			}
+			$this->log->info("middleware ".$url_path);
 			$isAuthenticated = $this->cookieMan->verifyCookies();
 			
 		}catch(\Exception $e){
@@ -166,8 +167,14 @@ class middleware {
 					}
 					return $response->withRedirect($redirectUrl, 301);
 				}else{
+					
+					
+					$this->log->info("refreshToken call returned ".$newtoken['code']." ".$newtoken['data']['error_description']);
+					
 					$this->cookieMan->delSIDCookies();
 					
+					
+						
 					
 					if($this->noredir ){
 						echo "<pre>";
@@ -197,6 +204,7 @@ class middleware {
 		************************************************************************/
 		if( $url_path==$this->callback_uri){
 			error_log(__LINE__." ".__FILE__ );
+			
 			$response = $this->route_Callback($request,$response);
 			return $response;
 		}
@@ -207,7 +215,7 @@ class middleware {
 		
 		************************************************************************/
 		if( $url_path==$this->token_uri){
-			
+			#$this->log->info("middleware ".$url_path);
 			#echo "TOKEN";
 			#die();
 			// This is the Token URI. we proxy this request to our internal IDP.
@@ -539,6 +547,7 @@ class middleware {
 		
 		$result = $this->idp->getTokenByAuthCode($allGetVars['code']);
 		
+		$this->logger->log("CALLBACK.");
 		#echo "<pre>";		
 		#var_dump($this->idp);
 		#var_dump($result);
